@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Genesis Jump: Awal Mula</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        :root {
+            --water-color-1: #006994;
+            --water-color-2: #008ebf;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            overflow: hidden;
+            touch-action: none; /* Mencegah pull-to-refresh di HP */
+        }
+
+        h1, h2, h3, .font-bold {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Water Background Animation */
+        .water-bg {
+            background: linear-gradient(180deg, var(--water-color-1) 0%, var(--water-color-2) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .water-bg::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 60%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 40%);
+            background-size: 100px 100px;
+            animation: waterDrift 10s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes waterDrift {
+            0% { background-position: 0 0, 0 0; }
+            100% { background-position: 100px 100px, -50px 100px; }
+        }
+
+        /* Leaf Animation */
+        .leaf-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        .leaf-float:nth-child(even) {
+            animation-duration: 4s;
+            animation-direction: alternate-reverse;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+            100% { transform: translateY(0px) rotate(-1deg); }
+        }
+
+        /* Frog Idle Breathing */
+        .frog-idle {
+            transform-origin: bottom center;
+            animation: breathe 1.5s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1, 1); }
+            50% { transform: scale(1.05, 0.95); }
+        }
+
+        /* Splash Effect */
+        .splash-ring {
+            position: absolute;
+            border: 4px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: ripple 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes ripple {
+            0% { width: 0; height: 0; opacity: 1; border-width: 4px; }
+            100% { width: 150px; height: 150px; opacity: 0; border-width: 0px; }
+        }
+
+        /* Sinking */
+        .sink {
+            animation: sinkDown 1s forwards ease-in;
+        }
+        @keyframes sinkDown {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+            100% { transform: scale(0.5) translateY(100px) rotate(45deg); opacity: 0; filter: brightness(0.5); }
+        }
+
+        /* UI Transitions */
+        .fade-enter { opacity: 0; transform: translateY(20px); }
+        .fade-enter-active { opacity: 1; transform: translateY(0); transition: all 0.4s ease-out; }
+        .fade-exit { opacity: 1; }
+        .fade-exit-active { opacity: 0; transform: scale(0.9); transition: all 0.3s ease-in; }
+
+        /* Custom Scrollbar for questions if needed */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
+
+        .btn-hover {
+            transition: all 0.2s;
+        }
+        .btn-hover:active {
+            transform: scale(0.95);
+        }
+
+        /* Grid Layouts */
+        #game-container.mode-solo { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+        #game-container.mode-duel { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+        #game-container.mode-squad { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr; }
+        
+        @media (max-width: 768px) {
+            /* Override dihapus agar mode duel tetap berjejer kiri-kanan (kolom) di HP */
+        }
+
+        /* Leaf text responsive */
+        .leaf-text {
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            line-height: 1.1;
+        }
+
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col relative select-none">
+
+    <!-- Rain Canvas (Global) -->
+    <canvas id="rainCanvas" class="absolute inset-0 pointer-events-none z-10 w-full h-full"></canvas>
+
+    <!-- Top Navigation -->
+    <nav class="absolute top-0 left-0 w-full p-2 lg:p-4 flex justify-between items-center z-50 pointer-events-none">
+        <h1 class="text-xl lg:text-3xl text-white drop-shadow-md tracking-wide">🕊️ Genesis<span class="text-green-400">Jump</span></h1>
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="btn-home" class="bg-gray-800/80 p-2 rounded-full hover:bg-gray-700 transition hidden" onclick="returnToMenu()" title="Ke Menu Utama">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            </button>
+            <button id="btn-audio" class="bg-gray-800/80 p-2 rounded-full hover:bg-gray-700 transition" onclick="toggleAudio()">
+                <svg id="icon-audio-on" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 10v4a2 2 0 002 2h2.586l3.707 3.707a1 1 0 001.707-.707V4.707a1 1 0 00-1.707-.707L9.586 7.707H7a2 2 0 00-2 2z"></path></svg>
+                <svg id="icon-audio-off" class="w-6 h-6 text-red-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+            </button>
+            <button id="btn-fullscreen" class="bg-gray-800/80 p-2 rounded-full hover:bg-gray-700 transition" onclick="toggleFullScreen()">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-gray-900/90 backdrop-blur-sm transition-opacity duration-500">
+        <div class="bg-white/10 p-8 rounded-3xl border border-white/20 shadow-2xl text-center max-w-lg w-11/12">
+            <h2 class="text-5xl text-green-400 mb-2 font-bold drop-shadow-lg tracking-wider">Genesis Jump</h2>
+            <p class="text-blue-200 mb-6 font-sans text-lg font-semibold tracking-wide">Misi: Kitab Kejadian Bab 1-5</p>
+            
+            <div class="mb-6 text-sm text-gray-200 bg-black/40 p-4 rounded-xl border border-white/10 text-left w-full shadow-inner">
+                <p class="font-bold mb-2 text-center text-white">📖 Petunjuk Permainan:</p>
+                <ul class="list-disc list-inside space-y-1.5 ml-2">
+                    <li>Terdapat total <strong>25 soal</strong> pilihan ganda.</li>
+                    <li>Batas waktu menjawab <strong>25 detik</strong> per soal.</li>
+                    <li>Hati-hati! Kamu hanya punya <strong>3 nyawa</strong> (kesempatan salah).</li>
+                </ul>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 w-full">
+                <button onclick="startGame(1)" class="btn-hover bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded-xl font-bold text-xl flex items-center justify-center gap-2 shadow-[0_4px_0_#166534]">
+                    <span>🧍</span> Solo Mode (1P)
+                </button>
+                <button onclick="startGame(2)" class="btn-hover bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-xl font-bold text-xl flex items-center justify-center gap-2 shadow-[0_4px_0_#1e3a8a]">
+                    <span>⚔️</span> Duel Mode (2P)
+                </button>
+                <button onclick="startGame(4)" class="btn-hover bg-purple-500 hover:bg-purple-600 text-white py-3 px-6 rounded-xl font-bold text-xl flex items-center justify-center gap-2 shadow-[0_4px_0_#4c1d95]">
+                    <span>👥</span> Squad Mode (4P)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container (Grid) -->
+    <div id="game-container" class="w-full h-full grid hidden z-20">
+        <!-- Player Boards will be injected here -->
+    </div>
+
+    <!-- SVG Templates (Hidden) -->
+    <div style="display: none;">
+        <!-- Merpati SVG -->
+        <svg id="svg-frog" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <g class="frog-idle">
+                <!-- Ekor -->
+                <path d="M 30 65 L 10 50 L 15 75 Z" fill="#cbd5e1"/>
+                <!-- Badan -->
+                <ellipse cx="50" cy="60" rx="25" ry="18" fill="#f8fafc"/>
+                <!-- Sayap -->
+                <path d="M 40 55 Q 50 25 80 35 Q 65 65 45 65 Z" fill="#e2e8f0"/>
+                <!-- Kepala -->
+                <circle cx="65" cy="45" r="14" fill="#f8fafc"/>
+                <!-- Paruh -->
+                <path d="M 77 43 L 92 46 L 77 50 Z" fill="#fbbf24"/>
+                <!-- Mata -->
+                <circle cx="68" cy="41" r="2.5" fill="black"/>
+                <!-- Ranting Zaitun (Olive branch) -->
+                <path d="M 92 46 Q 100 55 95 65" stroke="#16a34a" stroke-width="2" fill="none"/>
+                <path d="M 95 52 L 100 50 Z" fill="#22c55e" stroke="#16a34a" stroke-width="1"/>
+                <path d="M 98 58 L 103 55 Z" fill="#22c55e" stroke="#16a34a" stroke-width="1"/>
+            </g>
+        </svg>
+
+        <!-- Awan SVG (Terpisah dari merpati) -->
+        <svg id="svg-cloud" viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg">
+            <g fill="#e0f2fe" opacity="0.5">
+                <circle cx="20" cy="32" r="15" />
+                <circle cx="50" cy="22" r="20" />
+                <circle cx="80" cy="32" r="15" />
+                <rect x="20" y="27" width="60" height="20" rx="10" />
+            </g>
+            <g fill="#ffffff" opacity="0.9">
+                <circle cx="20" cy="30" r="15" />
+                <circle cx="50" cy="20" r="20" />
+                <circle cx="80" cy="30" r="15" />
+                <rect x="20" y="25" width="60" height="20" rx="10" />
+            </g>
+        </svg>
+
+        <!-- Leaf SVG -->
+        <svg id="svg-leaf" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 10 C 20 10, 5 30, 10 60 C 15 90, 40 95, 50 95 C 60 95, 85 90, 90 60 C 95 30, 80 10, 50 10 Z" fill="#16a34a"/>
+            <path d="M50 10 C 20 10, 5 30, 10 60 L50 60 Z" fill="#22c55e" opacity="0.6"/>
+            <!-- Cutout -->
+            <path d="M50 95 L45 80 L55 80 Z" fill="var(--water-color-1)"/> <!-- Will match water roughly or transparency -->
+            <line x1="50" y1="15" x2="50" y2="80" stroke="#14532d" stroke-width="2"/>
+            <line x1="50" y1="40" x2="30" y2="30" stroke="#14532d" stroke-width="2"/>
+            <line x1="50" y1="50" x2="70" y2="40" stroke="#14532d" stroke-width="2"/>
+            <line x1="50" y1="65" x2="35" y2="55" stroke="#14532d" stroke-width="2"/>
+        </svg>
+    </div>
+
+<script>
+/* ==========================================================================
+   BANK SOAL: Kitab Kejadian Bab 1-5
+   ========================================================================== */
+const questionBank = [
+    {
+        q: "Pada hari ke berapakah Allah menciptakan terang dan memisahkannya dari gelap?",
+        options: ["Hari pertama", "Hari kedua", "Hari ketiga", "Hari keempat", "Hari kelima"],
+        correct: 0
+    },
+    {
+        q: "Apa yang diciptakan Allah pada hari kedua?",
+        options: ["Cakrawala", "Tumbuh-tumbuhan", "Benda-benda penerang", "Burung di udara", "Daratan dan laut"],
+        correct: 0
+    },
+    {
+        q: "Pada hari keempat, Allah menciptakan benda-benda penerang. Apa salah satu fungsinya?",
+        options: ["Memisahkan siang dari malam", "Menjadi tempat tinggal burung", "Menyiram tumbuh-tumbuhan", "Memanaskan bumi", "Membentuk pelangi"],
+        correct: 0
+    },
+    {
+        q: "Apa yang diciptakan Allah pada hari keenam?",
+        options: ["Binatang darat dan manusia", "Ikan dan burung", "Matahari dan bulan", "Cakrawala", "Tumbuh-tumbuhan"],
+        correct: 0
+    },
+    {
+        q: "Kepada siapakah Allah berfirman: 'Beranakcuculah dan bertambah banyak; penuhilah bumi...'?",
+        options: ["Manusia (Adam dan Hawa)", "Burung-burung di udara", "Ikan-ikan di laut", "Malaikat di sorga", "Binatang liar"],
+        correct: 0
+    },
+    {
+        q: "Apa yang dilakukan Allah pada hari ketujuh setelah selesai menciptakan alam semesta?",
+        options: ["Berhenti bekerja dan memberkati hari itu", "Menciptakan Taman Eden", "Memberi nama binatang", "Mengutus malaikat", "Menurunkan hujan"],
+        correct: 0
+    },
+    {
+        q: "Dari apakah Tuhan Allah membentuk manusia pertama (Adam)?",
+        options: ["Debu tanah", "Tulang rusuk", "Cahaya matahari", "Air sungai", "Batu karang"],
+        correct: 0
+    },
+    {
+        q: "Di manakah Tuhan Allah menempatkan manusia yang dibentuk-Nya itu?",
+        options: ["Taman Eden", "Gunung Ararat", "Lembah Yordan", "Padang Gurun", "Kota Babel"],
+        correct: 0
+    },
+    {
+        q: "Pohon apakah yang buahnya dilarang Allah untuk dimakan oleh manusia?",
+        options: ["Pohon pengetahuan tentang yang baik dan yang jahat", "Pohon kehidupan", "Pohon ara", "Pohon zaitun", "Pohon kurma"],
+        correct: 0
+    },
+    {
+        q: "Salah satu dari empat sungai yang mengalir membasahi Taman Eden adalah sungai...",
+        options: ["Efrat", "Yordan", "Nil", "Tiberias", "Mati"],
+        correct: 0
+    },
+    {
+        q: "Dari bagian tubuh manakah Tuhan Allah membangun seorang perempuan (Hawa)?",
+        options: ["Tulang rusuk Adam", "Tangan Adam", "Rambut Adam", "Jantung Adam", "Kaki Adam"],
+        correct: 0
+    },
+    {
+        q: "Binatang apakah yang paling cerdik dan berhasil memperdaya perempuan di Taman Eden?",
+        options: ["Ular", "Burung gagak", "Singa", "Keledai", "Kambing"],
+        correct: 0
+    },
+    {
+        q: "Setelah makan buah terlarang, hal pertama yang disadari oleh manusia laki-laki dan perempuan itu adalah...",
+        options: ["Bahwa mereka telanjang", "Bahwa mereka lapar", "Bahwa hari sudah malam", "Bahwa ular itu berbohong", "Bahwa Tuhan datang mencari mereka"],
+        correct: 0
+    },
+    {
+        q: "Apa hukuman dari Tuhan kepada ular karena telah memperdaya manusia?",
+        options: ["Menjalar dengan perut dan makan debu tanah", "Diusir dari Taman Eden", "Sayapnya dicabut", "Kehilangan suaranya", "Menjadi musuh singa"],
+        correct: 0
+    },
+    {
+        q: "Apa yang Allah kenakan kepada manusia sebelum mengusir mereka dari Taman Eden?",
+        options: ["Pakaian dari kulit binatang", "Pakaian dari daun ara", "Jubah dari sutra", "Pakaian tenunan", "Mahkota dari daun"],
+        correct: 0
+    },
+    {
+        q: "Untuk menjaga jalan ke pohon kehidupan setelah manusia diusir dari Taman, Allah menempatkan...",
+        options: ["Kerub dengan pedang yang menyala-nyala", "Tembok yang sangat tinggi", "Singa yang buas", "Malaikat pelindung", "Awan badai"],
+        correct: 0
+    },
+    {
+        q: "Siapakah nama kedua anak laki-laki Adam dan Hawa yang pertama?",
+        options: ["Kain dan Habel", "Sem dan Yafet", "Yakub dan Esau", "Ismael dan Ishak", "Efraim dan Manasye"],
+        correct: 0
+    },
+    {
+        q: "Apakah pekerjaan utama Kain?",
+        options: ["Petani (Pengusaha tanah)", "Gembala kambing domba", "Nelayan", "Tukang kayu", "Pemburu"],
+        correct: 0
+    },
+    {
+        q: "Apakah pekerjaan utama Habel?",
+        options: ["Gembala kambing domba", "Petani", "Tukang besi", "Pembuat kemah", "Pedagang"],
+        correct: 0
+    },
+    {
+        q: "Persembahan apakah yang dibawa oleh Habel dan diindahkan oleh Tuhan?",
+        options: ["Anak sulung kambing dombanya dan lemaknya", "Hasil tanah yang terbaik", "Emas dan perak", "Burung merpati", "Biji gandum"],
+        correct: 0
+    },
+    {
+        q: "Setelah membunuh Habel, apa hukuman yang dijatuhkan Tuhan kepada Kain?",
+        options: ["Menjadi pelarian dan pengembara di bumi", "Dihukum mati", "Diusir ke Mesir", "Menjadi budak Hawa", "Dipenjara di dalam gua"],
+        correct: 0
+    },
+    {
+        q: "Apa yang diberikan Tuhan kepada Kain agar tidak ada yang membunuhnya saat ia mengembara?",
+        options: ["Tanda pada Kain", "Pedang besi", "Perisai", "Burung pelindung", "Awan perlindungan"],
+        correct: 0
+    },
+    {
+        q: "Siapakah keturunan Lamekh yang disebut sebagai 'bapa semua orang yang memainkan kecapi dan suling'?",
+        options: ["Yubal", "Yabal", "Tubal-Kain", "Set", "Henokh"],
+        correct: 0
+    },
+    {
+        q: "Siapakah nama anak yang dilahirkan Hawa sebagai pengganti Habel yang dibunuh Kain?",
+        options: ["Set", "Henokh", "Enos", "Lamekh", "Metusalah"],
+        correct: 0
+    },
+    {
+        q: "Tokoh keturunan Set yang 'hidup bergaul dengan Allah' lalu diangkat ke sorga tanpa mengalami kematian adalah...",
+        options: ["Henokh", "Adam", "Nuh", "Metusalah", "Enos"],
+        correct: 0
+    }
+];
+
+/* ==========================================================================
+   SISTEM AUDIO (Web Audio API Synthesizer)
+   ========================================================================== */
+let audioCtx;
+let audioEnabled = true;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    document.getElementById('icon-audio-on').classList.toggle('hidden', !audioEnabled);
+    document.getElementById('icon-audio-off').classList.toggle('hidden', audioEnabled);
+}
+
+function playSound(type) {
+    if (!audioEnabled || !audioCtx) return;
+    
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    const now = audioCtx.currentTime;
+    
+    if (type === 'jump') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } else if (type === 'correct') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.1);
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'wrong') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.4);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    } else if (type === 'tick') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, now);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'splash') {
+        // White noise for splash
+        const bufferSize = audioCtx.sampleRate * 0.5; 
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noiseSource = audioCtx.createBufferSource();
+        noiseSource.buffer = buffer;
+        
+        // Lowpass filter for water sound
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1000;
+        
+        noiseSource.connect(filter);
+        filter.connect(gainNode);
+        
+        gainNode.gain.setValueAtTime(0.5, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        
+        noiseSource.start(now);
+        noiseSource.stop(now + 0.5);
+    }
+}
+
+/* ==========================================================================
+   EFEK VISUAL: HUJAN (Canvas)
+   ========================================================================== */
+const canvas = document.getElementById('rainCanvas');
+const ctx = canvas.getContext('2d');
+let raindrops = [];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+class Raindrop {
+    constructor() {
+        this.reset();
+        this.y = Math.random() * canvas.height; // Initial random y
+    }
+    reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = -10;
+        this.speed = Math.random() * 10 + 15;
+        this.length = Math.random() * 20 + 10;
+        this.opacity = Math.random() * 0.3 + 0.1;
+    }
+    update() {
+        this.y += this.speed;
+        this.x -= 2; // Slight wind angle
+        if (this.y > canvas.height) this.reset();
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - 2, this.y + this.length);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+}
+
+function initRain() {
+    raindrops = [];
+    for (let i = 0; i < 100; i++) {
+        raindrops.push(new Raindrop());
+    }
+    animateRain();
+}
+
+function animateRain() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    raindrops.forEach(drop => {
+        drop.update();
+        drop.draw();
+    });
+    requestAnimationFrame(animateRain);
+}
+
+/* ==========================================================================
+   LOGIKA GAME: Player & UI
+   ========================================================================== */
+const gameContainer = document.getElementById('game-container');
+const mainMenu = document.getElementById('main-menu');
+let players = [];
+let gameInterval;
+
+// Utils
+function shuffleArray(array) {
+    let curId = array.length;
+    while (0 !== curId) {
+        let randId = Math.floor(Math.random() * curId);
+        curId -= 1;
+        let tmp = array[curId];
+        array[curId] = array[randId];
+        array[randId] = tmp;
+    }
+    return array;
+}
+
+class Player {
+    constructor(id, name, colors) {
+        this.id = id;
+        this.name = name;
+        this.colors = colors;
+        this.score = 0;
+        this.combo = 0;
+        this.isFinished = false;
+        this.lives = 3;
+        this.timeLeft = 25;
+        this.timerInterval = null;
+        this.currentQuestion = null;
+        this.questions = shuffleArray([...questionBank]); // Clone & shuffle
+        this.qIndex = 0;
+        
+        this.createDOM();
+        this.nextQuestion();
+    }
+
+    createDOM() {
+        const board = document.createElement('div');
+        board.className = `player-board relative water-bg border-2 border-gray-800 flex flex-col items-center`;
+        board.id = `player-${this.id}`;
+        
+        // Background overlay for distinct player colors
+        const overlay = document.createElement('div');
+        overlay.className = `absolute inset-0 ${this.colors.bg} opacity-30 pointer-events-none`;
+        board.appendChild(overlay);
+
+        const isSquadMode = gameContainer.classList.contains('mode-squad');
+
+        // UI Header
+        const header = document.createElement('div');
+        header.className = `absolute top-12 lg:top-16 w-[95%] bg-white/90 text-gray-800 ${isSquadMode ? 'p-1.5' : 'p-3'} rounded-xl shadow-lg z-20 flex flex-col ${isSquadMode ? 'gap-0.5' : 'gap-2'}`;
+        
+        const topRow = document.createElement('div');
+        topRow.className = `flex justify-between items-center font-bold ${isSquadMode ? 'text-[10px]' : 'text-sm lg:text-base'} w-full`;
+        topRow.innerHTML = `
+            <div class="flex flex-col items-start w-1/3">
+                <span class="${this.colors.text}">${this.name}</span>
+                <span id="lives-${this.id}" class="text-red-500 ${isSquadMode ? 'text-[8px]' : 'text-xs'} mt-0.5 tracking-widest">❤️❤️❤️</span>
+            </div>
+            <div class="flex flex-col items-center w-1/3">
+                <span id="timer-${this.id}" class="${isSquadMode ? 'text-sm' : 'text-xl'} text-yellow-500 font-bold transition-colors">25</span>
+            </div>
+            <div class="flex flex-col items-end gap-1 w-1/3">
+                <span>Skor: <span id="score-${this.id}" class="text-blue-600">0</span></span>
+                <span id="combo-${this.id}" class="text-orange-500 ${isSquadMode ? 'text-[8px]' : 'text-xs'} hidden">Combo x1</span>
+            </div>
+        `;
+        
+        // Indikator nomor/sisa soal
+        const qCounter = document.createElement('div');
+        qCounter.id = `qcounter-${this.id}`;
+        qCounter.className = `${isSquadMode ? 'text-[8px]' : 'text-[10px] lg:text-xs'} font-bold text-gray-400 text-center uppercase tracking-wider ${isSquadMode ? 'mt-0' : 'mt-1'}`;
+        qCounter.innerText = `Soal - / -`;
+
+        const qText = document.createElement('div');
+        qText.id = `qtext-${this.id}`;
+        qText.className = `${isSquadMode ? 'text-xs leading-tight' : 'text-sm lg:text-md leading-tight'} font-semibold text-center`;
+        qText.innerText = "Loading question...";
+
+        header.appendChild(topRow);
+        header.appendChild(qCounter);
+        header.appendChild(qText);
+        board.appendChild(header);
+
+        // Game Area (Leaves & Frog)
+        const playArea = document.createElement('div');
+        playArea.id = `playarea-${this.id}`;
+        playArea.className = `absolute bottom-0 w-full h-[70%] lg:h-[75%] z-10`;
+        board.appendChild(playArea);
+
+        // Awan yang tersebar di bawah (Tidak ikut melompat)
+        const cloudsContainer = document.createElement('div');
+        cloudsContainer.className = `absolute bottom-0 w-full h-[20%] pointer-events-none flex justify-around items-end pb-2 opacity-90 z-[15]`;
+        for(let i = 0; i < 3; i++) {
+            const cloud = document.createElement('div');
+            // Variasikan ukuran dan beri efek mengambang pelan (leaf-float)
+            const sizeClass = i === 1 ? 'w-24 lg:w-32 mb-4' : 'w-16 lg:w-24 mb-0';
+            cloud.className = `${sizeClass} leaf-float`;
+            cloud.innerHTML = document.getElementById('svg-cloud').outerHTML;
+            cloudsContainer.appendChild(cloud);
+        }
+        playArea.appendChild(cloudsContainer);
+
+        // Frog / Merpati
+        const frog = document.createElement('div');
+        frog.id = `frog-${this.id}`;
+        frog.className = `absolute w-12 h-12 lg:w-16 lg:h-16 -ml-6 lg:-ml-8 z-30 transition-all duration-500`;
+        frog.innerHTML = document.getElementById('svg-frog').outerHTML;
+        // Initial pos: center bottom
+        frog.style.left = `50%`;
+        frog.style.bottom = `10%`;
+        playArea.appendChild(frog);
+
+        // Game Over Overlay
+        const gameOverScreen = document.createElement('div');
+        gameOverScreen.id = `gameover-${this.id}`;
+        gameOverScreen.className = `absolute inset-0 bg-black/70 z-40 hidden flex-col items-center justify-center p-4 text-center`;
+        gameOverScreen.innerHTML = `
+            <h3 class="text-3xl text-red-500 mb-2">JATUH!</h3>
+            <p class="text-xl text-white mb-4">Skor Akhir: <span id="final-score-${this.id}">0</span></p>
+        `;
+        
+        // Only show restart button in Solo mode, otherwise wait for everyone
+        if (players.length === 0 || gameContainer.classList.contains('mode-solo')) {
+            gameOverScreen.innerHTML += `<button onclick="returnToMenu()" class="mt-4 bg-gray-200 text-gray-900 px-4 py-2 rounded-lg font-bold hover:bg-white">Menu Utama</button>`;
+        }
+        board.appendChild(gameOverScreen);
+
+        gameContainer.appendChild(board);
+        this.board = board;
+        this.playArea = playArea;
+        this.frog = frog;
+    }
+
+    nextQuestion() {
+        if (this.isFinished) return;
+
+        // Jika pertanyaan sudah habis, selesaikan game untuk pemain ini
+        if (this.qIndex >= this.questions.length) {
+            this.isFinished = true;
+            this.showGameOver();
+            checkGlobalGameOver();
+            return;
+        }
+
+        this.currentQuestion = this.questions[this.qIndex];
+        this.qIndex++;
+
+        // Update Text Soal & Sisa Soal
+        document.getElementById(`qcounter-${this.id}`).innerText = `Soal ${this.qIndex} dari ${this.questions.length}`;
+        document.getElementById(`qtext-${this.id}`).innerText = this.currentQuestion.q;
+
+        // Prepare Answers (Shuffle options but keep track of correct)
+        let optionsWithCorrect = this.currentQuestion.options.map((opt, i) => ({
+            text: opt,
+            isCorrect: i === this.currentQuestion.correct
+        }));
+        optionsWithCorrect = shuffleArray(optionsWithCorrect);
+
+        this.spawnLeaves(optionsWithCorrect);
+        this.startTimer();
+    }
+
+    startTimer() {
+        this.clearTimer();
+        this.timeLeft = 25;
+        this.updateTimerUI();
+        
+        this.timerInterval = setInterval(() => {
+            if (this.isFinished) return this.clearTimer();
+            
+            this.timeLeft--;
+            this.updateTimerUI();
+            
+            if (this.timeLeft <= 5 && this.timeLeft > 0) {
+                playSound('tick');
+            } else if (this.timeLeft <= 0) {
+                this.clearTimer();
+                this.handleWrong(null); // Waktu habis dianggap salah
+            }
+        }, 1000);
+    }
+
+    clearTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    updateTimerUI() {
+        const timerEl = document.getElementById(`timer-${this.id}`);
+        if (timerEl) {
+            timerEl.innerText = this.timeLeft;
+            if (this.timeLeft <= 5) {
+                timerEl.classList.remove('text-yellow-500');
+                timerEl.classList.add('text-red-500', 'animate-pulse');
+            } else {
+                timerEl.classList.add('text-yellow-500');
+                timerEl.classList.remove('text-red-500', 'animate-pulse');
+            }
+        }
+    }
+
+    updateLivesUI() {
+        const livesEl = document.getElementById(`lives-${this.id}`);
+        if(livesEl) {
+            livesEl.innerText = '❤️'.repeat(this.lives) + '🖤'.repeat(3 - this.lives);
+        }
+    }
+
+    spawnLeaves(options) {
+        // Remove old leaves
+        const oldLeaves = this.playArea.querySelectorAll('.leaf-btn');
+        oldLeaves.forEach(l => {
+            l.style.opacity = '0';
+            l.style.bottom = '-20%';
+            setTimeout(() => l.remove(), 500);
+        });
+
+        // Calculate positions (Staggered arc)
+        // Jika Squad Mode (4 pemain), turunkan daun dan dekatkan ke tengah agar mudah dibaca di layar sempit
+        const isSquadMode = gameContainer.classList.contains('mode-squad');
+        const isSoloMode = gameContainer.classList.contains('mode-solo');
+        const isDuelMode = gameContainer.classList.contains('mode-duel');
+
+        const positions = isSquadMode ? [
+            { x: 20, y: 40 }, // Kiri atas (diturunkan drastis)
+            { x: 35, y: 20 }, // Kiri bawah (diturunkan drastis)
+            { x: 50, y: 50 }, // Tengah atas (diturunkan drastis)
+            { x: 65, y: 20 }, // Kanan bawah (diturunkan drastis)
+            { x: 80, y: 40 }  // Kanan atas (diturunkan drastis)
+        ] : [
+            { x: 15, y: 45 }, // Kiri atas (diturunkan jauh dari soal)
+            { x: 30, y: 25 }, // Kiri bawah (diturunkan jauh dari soal)
+            { x: 50, y: 55 }, // Tengah atas (diturunkan jauh dari soal)
+            { x: 70, y: 25 }, // Kanan bawah (diturunkan jauh dari soal)
+            { x: 85, y: 45 }  // Kanan atas (diturunkan jauh dari soal)
+        ];
+
+        // Perbesar daun & teks sesuai Mode permainan
+        let leafSizeClasses = 'w-20 h-20 lg:w-28 lg:h-28 -ml-10 lg:-ml-14'; // Default (Squad Mode)
+        let textSizeClasses = 'text-[10px] lg:text-sm';
+
+        if (isSoloMode) {
+            leafSizeClasses = 'w-28 h-28 lg:w-40 lg:h-40 -ml-14 lg:-ml-20';
+            textSizeClasses = 'text-xs lg:text-base';
+        } else if (isDuelMode) {
+            // Ukuran ditengah-tengah antara Solo dan Squad agar pas di layar bagi 2
+            leafSizeClasses = 'w-24 h-24 lg:w-32 lg:h-32 -ml-12 lg:-ml-16';
+            textSizeClasses = 'text-[11px] lg:text-[15px]';
+        }
+
+        options.forEach((opt, index) => {
+            const leaf = document.createElement('div');
+            leaf.className = `leaf-btn leaf-float absolute ${leafSizeClasses} flex items-center justify-center cursor-pointer transition-transform hover:scale-110 z-20`;
+            leaf.dataset.correct = opt.isCorrect; // Menyimpan data jawaban benar pada daun
+            leaf.innerHTML = document.getElementById('svg-leaf').outerHTML;
+            
+            // Text container inside leaf
+            const textSpan = document.createElement('span');
+            textSpan.className = `absolute leaf-text ${textSizeClasses} font-bold text-white text-center w-[80%] pointer-events-none break-words`;
+            textSpan.innerText = opt.text;
+            leaf.appendChild(textSpan);
+
+            // Positioning (Sudah ditengahkan dengan margin-left)
+            leaf.style.left = `${positions[index].x}%`;
+            leaf.style.bottom = `100%`; // Start from above
+            
+            // Animation drop in
+            setTimeout(() => {
+                leaf.style.transition = 'bottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                leaf.style.bottom = `${positions[index].y}%`;
+            }, 50);
+
+            // Interaction
+            leaf.onclick = () => this.jumpTo(leaf, opt.isCorrect, positions[index]);
+            
+            this.playArea.appendChild(leaf);
+        });
+    }
+
+    jumpTo(leafEl, isCorrect, targetPos) {
+        if (this.isFinished) return;
+        
+        this.clearTimer();
+        playSound('jump');
+        
+        // Disable other leaves
+        const leaves = this.playArea.querySelectorAll('.leaf-btn');
+        leaves.forEach(l => l.style.pointerEvents = 'none');
+
+        // Animate Frog Jump
+        const frogRect = this.frog.getBoundingClientRect();
+        const leafRect = leafEl.getBoundingClientRect();
+        const playAreaRect = this.playArea.getBoundingClientRect();
+
+        const targetX = targetPos.x;
+        const targetY = targetPos.y;
+
+        // Use Web Animations API for Arc
+        this.frog.animate([
+            { transform: 'translate(0, 0) scale(1)' },
+            { transform: `translate(0, -50px) scale(1.2)` }, // Peak
+            { transform: 'translate(0, 0) scale(1)' }
+        ], { duration: 400, easing: 'ease-in-out' });
+
+        this.frog.style.left = `${targetX}%`;
+        this.frog.style.bottom = `calc(${targetY}% + 10px)`; // land slightly above center
+
+        setTimeout(() => {
+            if (isCorrect) {
+                this.handleCorrect(leafEl);
+            } else {
+                this.handleWrong(leafEl);
+            }
+        }, 400); // Wait for jump animation
+    }
+
+    handleCorrect(leafEl) {
+        playSound('correct');
+        this.score += 10 + (this.combo * 5);
+        this.combo++;
+        
+        document.getElementById(`score-${this.id}`).innerText = this.score;
+        const comboEl = document.getElementById(`combo-${this.id}`);
+        if (this.combo > 1) {
+            comboEl.innerText = `Combo x${this.combo}`;
+            comboEl.classList.remove('hidden');
+            comboEl.classList.add('scale-125', 'text-yellow-400');
+            setTimeout(() => comboEl.classList.remove('scale-125', 'text-yellow-400'), 300);
+        }
+
+        // Visual feedback on leaf
+        leafEl.querySelector('svg').style.filter = 'brightness(1.5)';
+
+        // Scroll effect: move frog back to bottom, spawn new leaves
+        setTimeout(() => {
+            this.frog.style.bottom = `10%`;
+            this.frog.style.left = `50%`;
+            this.nextQuestion();
+        }, 500);
+    }
+
+    handleWrong(leafEl) {
+        this.combo = 0;
+        this.lives--;
+        this.updateLivesUI();
+
+        playSound('wrong');
+        setTimeout(() => playSound('splash'), 200);
+
+        // Frog sink animation
+        this.frog.classList.add('sink');
+        
+        // Leaf break/sink animation (jika melompat ke daun yang salah)
+        if (leafEl) {
+            leafEl.style.transform = 'translateY(50px) rotate(20deg)';
+            leafEl.style.opacity = '0';
+        }
+
+        // --- Tampilkan jawaban yang benar ---
+        const correctLeaf = this.playArea.querySelector('[data-correct="true"]');
+        if (correctLeaf) {
+            correctLeaf.style.transform = 'scale(1.2)';
+            correctLeaf.style.zIndex = '40';
+            
+            // Beri efek bersinar pada daun yang benar
+            const svgEl = correctLeaf.querySelector('svg');
+            if (svgEl) svgEl.style.filter = 'drop-shadow(0 0 15px #fbbf24) brightness(1.4)';
+            
+            // Ubah warna teks daun yang benar menjadi kuning
+            const textEl = correctLeaf.querySelector('.leaf-text');
+            if (textEl) textEl.style.color = '#fde047'; 
+            
+            // Redupkan daun lain agar jawaban benar lebih menonjol
+            const allLeaves = this.playArea.querySelectorAll('.leaf-btn');
+            allLeaves.forEach(l => {
+                if (l !== correctLeaf && l !== leafEl) {
+                    l.style.opacity = '0.3';
+                }
+            });
+        }
+        // ------------------------------------
+
+        // Create Splash Ring
+        const splash = document.createElement('div');
+        splash.className = 'splash-ring';
+        // Position relative to play area
+        splash.style.left = this.frog.style.left;
+        splash.style.bottom = this.frog.style.bottom;
+        this.playArea.appendChild(splash);
+
+        // Cek sisa nyawa, jika habis game over, jika sisa respawn
+        setTimeout(() => {
+            if (this.lives <= 0) {
+                this.isFinished = true;
+                this.showGameOver();
+                checkGlobalGameOver();
+            } else {
+                this.frog.classList.remove('sink');
+                this.frog.style.bottom = `10%`;
+                this.frog.style.left = `50%`;
+                this.nextQuestion();
+            }
+        }, 2500); // Diperlama menjadi 2.5 detik agar pemain sempat membaca jawaban
+    }
+
+    showGameOver() {
+        const goScreen = document.getElementById(`gameover-${this.id}`);
+        goScreen.classList.remove('hidden');
+        goScreen.classList.add('flex');
+        
+        const title = goScreen.querySelector('h3');
+        title.innerText = "SELESAI!";
+        title.className = "text-3xl text-yellow-400 mb-2 font-bold";
+        
+        document.getElementById(`final-score-${this.id}`).innerText = this.score;
+    }
+}
+
+/* ==========================================================================
+   GAME MANAGEMENT
+   ========================================================================== */
+function startGame(mode) {
+    initAudio();
+    mainMenu.classList.add('opacity-0', 'pointer-events-none');
+    setTimeout(() => mainMenu.classList.add('hidden'), 500);
+
+    document.getElementById('btn-home').classList.remove('hidden');
+
+    gameContainer.innerHTML = '';
+    gameContainer.classList.remove('hidden', 'mode-solo', 'mode-duel', 'mode-squad');
+    players = [];
+
+    const colors = [
+        { bg: 'bg-transparent', text: 'text-green-600' }, // Solo uses default
+        { bg: 'bg-red-500', text: 'text-red-700' },
+        { bg: 'bg-blue-500', text: 'text-blue-700' },
+        { bg: 'bg-yellow-500', text: 'text-yellow-700' },
+        { bg: 'bg-purple-500', text: 'text-purple-700' }
+    ];
+
+    if (mode === 1) {
+        gameContainer.classList.add('mode-solo');
+        players.push(new Player(1, "Player 1", colors[0]));
+    } else if (mode === 2) {
+        gameContainer.classList.add('mode-duel');
+        players.push(new Player(1, "Player 1", colors[1]));
+        players.push(new Player(2, "Player 2", colors[2]));
+    } else if (mode === 4) {
+        gameContainer.classList.add('mode-squad');
+        players.push(new Player(1, "P1", colors[1]));
+        players.push(new Player(2, "P2", colors[2]));
+        players.push(new Player(3, "P3", colors[3]));
+        players.push(new Player(4, "P4", colors[4]));
+    }
+
+    initRain();
+}
+
+function checkGlobalGameOver() {
+    const allFinished = players.every(p => p.isFinished);
+    if (allFinished && players.length > 1) {
+        // Find winner
+        let maxScore = -1;
+        let winnerName = "";
+        players.forEach(p => {
+            if (p.score > maxScore) {
+                maxScore = p.score;
+                winnerName = p.name;
+            }
+        });
+
+        // Append global result screen
+        const resultScreen = document.createElement('div');
+        resultScreen.className = `absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-8 text-center fade-enter-active`;
+        resultScreen.innerHTML = `
+            <h2 class="text-5xl text-yellow-400 mb-6 font-bold">GAME OVER</h2>
+            <p class="text-2xl text-white mb-2">Pemenang: <span class="text-green-400 font-bold">${winnerName}</span></p>
+            <p class="text-xl text-gray-300 mb-8">Skor Tertinggi: ${maxScore}</p>
+            <button onclick="returnToMenu()" class="bg-green-500 text-white px-8 py-3 rounded-xl font-bold text-xl hover:bg-green-600 btn-hover">Main Lagi</button>
+        `;
+        document.body.appendChild(resultScreen);
+    }
+}
+
+function returnToMenu() {
+    players.forEach(p => p.clearTimer());
+
+    // Remove result screen if exists
+    const resultScreen = document.querySelector('.z-50.bg-black\\/90');
+    if (resultScreen) resultScreen.remove();
+
+    document.getElementById('btn-home').classList.add('hidden');
+
+    gameContainer.classList.add('hidden');
+    gameContainer.innerHTML = '';
+    mainMenu.classList.remove('hidden', 'opacity-0');
+    mainMenu.classList.add('opacity-100');
+    mainMenu.classList.remove('pointer-events-none');
+}
+
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+</script>
+</body>
+</html>
